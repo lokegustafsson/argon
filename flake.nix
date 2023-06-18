@@ -36,6 +36,7 @@
             cargo2nix.outputs.packages.${system}.cargo2nix
             p.rust-bin.stable.latest.clippy
             p.rust-bin.stable.latest.default
+            p.rust-bin.stable.latest.rust-analyzer
           ];
         };
 
