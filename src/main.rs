@@ -89,7 +89,7 @@ impl Locals {
     fn new() -> Self {
         Self {
             output: BufWriter::new(io::stdout().lock()),
-            stack: String::new(),
+            stack: "json".to_owned(),
             stack_item_starts: Vec::new(),
         }
     }
@@ -103,49 +103,63 @@ fn process_recursively(json: &Value<'_>) {
             Value::Static(val) => {
                 use io::Write;
                 let locals: &mut Locals = &mut locals;
-                writeln!(locals.output, "{} = {val}", locals.stack).unwrap();
+                writeln!(locals.output, "{} = {val};", locals.stack).unwrap();
             }
             Value::String(val) => {
                 use io::Write;
                 let locals: &mut Locals = &mut locals;
-                writeln!(locals.output, "{} = {val}", locals.stack).unwrap();
+                writeln!(locals.output, "{} = {val:?};", locals.stack).unwrap();
             }
             Value::Array(array) => {
-                use fmt::Write;
-                for (i, item) in array.iter().enumerate() {
-                    {
-                        let locals: &mut Locals = &mut locals;
-                        locals.stack_item_starts.push(locals.stack.len());
-                        write!(&mut locals.stack, "[{i}]").unwrap();
-                    }
-                    mem::drop(locals);
-                    process_recursively(item);
-                    locals = cell.borrow_mut();
-                    {
-                        let locals: &mut Locals = &mut locals;
-                        locals
-                            .stack
-                            .truncate(locals.stack_item_starts.pop().unwrap());
+                {
+                    use io::Write;
+                    let locals: &mut Locals = &mut locals;
+                    writeln!(locals.output, "{} = [];", locals.stack).unwrap();
+                }
+                {
+                    use fmt::Write;
+                    for (i, item) in array.iter().enumerate() {
+                        {
+                            let locals: &mut Locals = &mut locals;
+                            locals.stack_item_starts.push(locals.stack.len());
+                            write!(&mut locals.stack, "[{i}]").unwrap();
+                        }
+                        mem::drop(locals);
+                        process_recursively(item);
+                        locals = cell.borrow_mut();
+                        {
+                            let locals: &mut Locals = &mut locals;
+                            locals
+                                .stack
+                                .truncate(locals.stack_item_starts.pop().unwrap());
+                        }
                     }
                 }
             }
             Value::Object(object) => {
-                use fmt::Write;
-                for (key, value) in &**object {
-                    {
-                        let locals: &mut Locals = &mut locals;
-                        locals.stack_item_starts.push(locals.stack.len());
-                        let dot = if locals.stack.is_empty() { "" } else { "." };
-                        write!(&mut locals.stack, "{dot}{key}").unwrap();
-                    }
-                    mem::drop(locals);
-                    process_recursively(value);
-                    locals = cell.borrow_mut();
-                    {
-                        let locals: &mut Locals = &mut locals;
-                        locals
-                            .stack
-                            .truncate(locals.stack_item_starts.pop().unwrap());
+                {
+                    use io::Write;
+                    let locals: &mut Locals = &mut locals;
+                    writeln!(locals.output, "{} = {{}};", locals.stack).unwrap();
+                }
+                {
+                    use fmt::Write;
+                    for (key, value) in &**object {
+                        {
+                            let locals: &mut Locals = &mut locals;
+                            locals.stack_item_starts.push(locals.stack.len());
+                            let dot = if locals.stack.is_empty() { "" } else { "." };
+                            write!(&mut locals.stack, "{dot}{key}").unwrap();
+                        }
+                        mem::drop(locals);
+                        process_recursively(value);
+                        locals = cell.borrow_mut();
+                        {
+                            let locals: &mut Locals = &mut locals;
+                            locals
+                                .stack
+                                .truncate(locals.stack_item_starts.pop().unwrap());
+                        }
                     }
                 }
             }
