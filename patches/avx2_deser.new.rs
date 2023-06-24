@@ -181,6 +181,9 @@ impl<'de> Deserializer<'de> {
                 } else {
                     src_i += bs_dist as usize + 2;
                     dst_i += bs_dist as usize + 2;
+                    unsafe {
+                        *buffer.get_kinda_unchecked_mut(dst_i-1) = *src.get_kinda_unchecked(src_i-1);
+                    };
                 }
             } else {
                 // they are the same. Since they can't co-occur, it means we encountered

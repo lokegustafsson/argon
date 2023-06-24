@@ -5,7 +5,7 @@ use simd_json::value::borrowed::Value;
 use std::{
     cell::RefCell,
     fmt, fs,
-    io::{self, BufWriter, StdoutLock, Read},
+    io::{self, BufWriter, Read, StdoutLock},
     mem,
     path::Path,
     process::ExitCode,
@@ -151,7 +151,10 @@ fn process_recursively(json: &Value<'_>) {
                 }
                 {
                     use fmt::Write;
-                    for (key, value) in &**object {
+                    let mut object: Vec<(&str, &Value<'_>)> =
+                        object.iter().map(|(k, v)| (k.as_ref(), v)).collect();
+                    object.sort_unstable_by_key(|&(k, _)| k);
+                    for (key, value) in object {
                         {
                             let locals: &mut Locals = &mut locals;
                             locals.stack_item_starts.push(locals.stack.len());

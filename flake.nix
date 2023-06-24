@@ -55,25 +55,53 @@
 
         packages.default = rust.argon;
 
-        apps.bench = {
-          type = "app";
-          program = builtins.toString (pkgs.writeShellScript "bench" ''
-            export PATH=${
-              lib.strings.makeBinPath [
-                pkgs.bash
-                pkgs.coreutils
-                pkgs.gron
-                pkgs.wget
-                rust.argon
-              ]
-            }
-            cd ''${TMPDIR:-/tmp}
-            printf "@ $(pwd)"
-            printf "\ngron:"
-            time gron ${large-file-json} > gron.result
-            printf "\nargon:"
-            time argon ${large-file-json} > argon.result
-          '');
+        apps = {
+          bench = {
+            type = "app";
+            program = builtins.toString (pkgs.writeShellScript "bench" ''
+              export PATH=${
+                lib.strings.makeBinPath [
+                  pkgs.bash
+                  pkgs.coreutils
+                  pkgs.gron
+                  pkgs.wget
+                  rust.argon
+                ]
+              }
+              cd ''${TMPDIR:-/tmp}
+              printf "@ $(pwd)"
+              printf "\ngron unsorted:"
+              time gron --no-sort ${large-file-json} > gron-nosort.result
+              printf "\ngron:"
+              time gron ${large-file-json} > gron.result
+              printf "\nargon:"
+              time argon ${large-file-json} > argon.result
+            '');
+          };
+          test = {
+            type = "app";
+            program = builtins.toString (pkgs.writeShellScript "bench" ''
+              export PATH=${
+                lib.strings.makeBinPath [
+                  pkgs.bash
+                  pkgs.coreutils
+                  pkgs.diffutils
+                  pkgs.gron
+                  pkgs.wget
+                  rust.argon
+                ]
+              }
+              printf "\nComparing on escaping.json.."
+              G1=$(sha256sum <(gron ${./test/escaping.json}))
+              A1=$(sha256sum <(argon ${./test/escaping.json}))
+              diff <(echo $G1) <(echo $A1)
+
+              printf "\nComparing on large-file.json.."
+              G2=$(sha256sum <(gron ${large-file-json}))
+              A2=$(sha256sum <(argon ${large-file-json}))
+              diff <(echo $G2) <(echo $A2)
+            '');
+          };
         };
       });
 }

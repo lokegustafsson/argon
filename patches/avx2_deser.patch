@@ -1,6 +1,6 @@
 --- a/src/avx2/deser.rs
 +++ b/src/avx2/deser.rs
-@@ -179,20 +179,8 @@ impl<'de> Deserializer<'de> {
+@@ -179,20 +179,11 @@ impl<'de> Deserializer<'de> {
                      src_i += s;
                      dst_i += o;
                  } else {
@@ -19,6 +19,9 @@
                      src_i += bs_dist as usize + 2;
 -                    dst_i += bs_dist as usize + 1;
 +                    dst_i += bs_dist as usize + 2;
++                    unsafe {
++                        *buffer.get_kinda_unchecked_mut(dst_i-1) = *src.get_kinda_unchecked(src_i-1);
++                    };
                  }
              } else {
                  // they are the same. Since they can't co-occur, it means we encountered
