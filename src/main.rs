@@ -1,3 +1,6 @@
+#[cfg(not(target_feature = "avx2"))]
+compile_error!("unexpectedly missing required feature AVX2");
+
 use simd_json::value::borrowed::Value;
 use std::{
     cell::RefCell,
