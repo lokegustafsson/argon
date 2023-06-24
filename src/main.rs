@@ -11,17 +11,72 @@ use std::{
     process::ExitCode,
 };
 use tracing_subscriber::{filter::targets::Targets, layer::Layer};
+use url::Url;
 
 #[derive(clap::Parser, Debug)]
 #[command(about, verbatim_doc_comment)]
+/// Example invocations:
+/// - `echo '[1,"abc\r\ncba]' | argon`
+/// - `argon path/to/something.json`
+/// - `argon https://api.github.com/repos/lokegustafsson/argon/commits?per_page=1`
 struct Args {
     /// Filesystem path or URL to the json file to process.
     path_or_url_to_json: Option<String>,
+    #[arg(short, long)]
+    verbose: bool,
 }
 
 fn main() -> ExitCode {
+    match main_impl() {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(()) => ExitCode::FAILURE,
+    }
+}
+fn main_impl() -> Result<(), ()> {
+    let args: Args = clap::Parser::parse();
+    setup_logging(args.verbose);
+
+    let mut buf = if let Some(path_or_url_to_json) = &args.path_or_url_to_json {
+        if let Ok(url_to_json) = Url::parse(path_or_url_to_json) {
+            from_url(url_to_json)?
+        } else {
+            from_file(Path::new(path_or_url_to_json))?
+        }
+    } else {
+        let mut buf = Vec::new();
+        io::stdin().lock().read_to_end(&mut buf).unwrap();
+        buf
+    };
+
+    let json = match simd_json::value::borrowed::to_value(&mut buf) {
+        Ok(json) => json,
+        Err(err) => {
+            tracing::error!(?err, "could not parse json");
+            return Err(());
+        }
+    };
+
+    process_recursively(&json);
+
+    // Leak `json` and `buf` for quicker exit
+    let _ = ManuallyDrop::new(json);
+    let _ = ManuallyDrop::new(buf);
+    Ok(())
+}
+
+fn setup_logging(verbose: bool) {
     tracing::subscriber::set_global_default(
         Targets::new()
+            .with_target("h2", tracing::Level::INFO)
+            .with_target(
+                "hyper::client",
+                if verbose {
+                    tracing::Level::DEBUG
+                } else {
+                    tracing::Level::INFO
+                },
+            )
+            .with_target("tokio_util::codec::framed_impl", tracing::Level::DEBUG)
             .with_default(tracing::Level::TRACE)
             .with_subscriber(
                 tracing_subscriber::FmtSubscriber::builder()
@@ -45,47 +100,46 @@ fn main() -> ExitCode {
             });
         tracing::error!(location, msg, "panicked!");
     }));
+}
 
-    let args: Args = clap::Parser::parse();
-
-    let mut buf = if let Some(path_or_url_to_json) = &args.path_or_url_to_json {
-        let target = Path::new(path_or_url_to_json);
-        if let Some(extension) = target.extension() {
-            if extension != "json" {
-                tracing::warn!("target missing json file extension; proceeding anyway");
-            }
-        } else {
-            tracing::error!("cannot process a directory");
-            return ExitCode::FAILURE;
-        }
-
-        match fs::read(target) {
-            Ok(buf) => buf,
-            Err(err) => {
-                tracing::error!(?err, "could not read file");
-                return ExitCode::FAILURE;
-            }
+fn from_url(url: Url) -> Result<Vec<u8>, ()> {
+    let resp = reqwest::blocking::Client::builder()
+        .user_agent(concat!(
+            env!("CARGO_PKG_NAME"),
+            "/",
+            env!("CARGO_PKG_VERSION"),
+        ))
+        .build()
+        .unwrap()
+        .get(url)
+        .header(reqwest::header::ACCEPT, "application/json")
+        .send()
+        .map_err(|err| tracing::error!(?err, "making request"))?;
+    if resp.status().is_success() {
+        Ok(resp.bytes().unwrap().as_ref().to_owned())
+    } else {
+        tracing::error!(status = %resp.status(), body = resp.text().unwrap_or("<missing".to_owned()), "server responded");
+        Err(())
+    }
+}
+fn from_file(path: &Path) -> Result<Vec<u8>, ()> {
+    let target = Path::new(path);
+    if let Some(extension) = target.extension() {
+        if extension != "json" {
+            tracing::warn!("target missing json file extension; proceeding anyway");
         }
     } else {
-        let mut ret = Vec::new();
-        io::stdin().lock().read_to_end(&mut ret).unwrap();
-        ret
-    };
+        tracing::error!("cannot process a directory");
+        return Err(());
+    }
 
-    let json = match simd_json::value::borrowed::to_value(&mut buf) {
-        Ok(json) => json,
+    match fs::read(target) {
+        Ok(buf) => Ok(buf),
         Err(err) => {
-            tracing::error!(?err, "could not parse json");
-            return ExitCode::FAILURE;
+            tracing::error!(?err, "could not read file");
+            Err(())
         }
-    };
-
-    process_recursively(&json);
-
-    // Leak `json` and `buf` for quicker exit
-    let _ = ManuallyDrop::new(json);
-    let _ = ManuallyDrop::new(buf);
-    ExitCode::SUCCESS
+    }
 }
 
 thread_local! {
@@ -119,9 +173,7 @@ fn process_recursively(json: &Value<'_>) {
             Value::String(val) => {
                 use io::Write;
                 let locals: &mut Locals = &mut locals;
-                locals.output.write_all(b"{} = \"").unwrap();
-                locals.output.write_all(val.as_bytes()).unwrap();
-                locals.output.write_all(b"\";\n").unwrap();
+                writeln!(locals.output, "{} = \"{val}\";", locals.stack).unwrap();
             }
             Value::Array(array) => {
                 {
