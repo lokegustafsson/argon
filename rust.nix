@@ -3,6 +3,10 @@ let
   rustPkgs = pkgs.rustBuilder.makePackageSet {
     rustVersion = "latest";
     packageFun = import ./Cargo.nix;
+
+    # Enable avx2
+    hostPlatformCpu = "haswell";
+
     packageOverrides = p:
       let
         mkNativeDep = cratename: extra-deps:

@@ -26,8 +26,17 @@
         lib = nixpkgs.lib;
         rust = import ./rust.nix {
           inherit lib pkgs;
-          extra-overrides = { mkNativeDep, mkEnvDep, mkRpath, mkOverride, p }:
-            [ (mkNativeDep "argon" [ ]) ];
+          extra-overrides = { mkNativeDep, mkEnvDep, mkRpath, mkOverride, p }: [
+            (mkNativeDep "argon" [ ])
+            (mkOverride "simd-json" (old: {
+              patches = (if old ? patches then old.patches else [ ])
+                ++ [ ./patches/simd-json-keep-escaped.patch ];
+            }))
+          ];
+        };
+        large-file-json = pkgs.fetchurl {
+          url = "https://raw.githubusercontent.com/json-iterator/test-data/master/large-file.json";
+          sha256 = "sha256-T8HlLE5gn+vQXXWiTIS8aVf6TSz7DV++u6xlC9x+2MA=";
         };
       in {
         devShells.default = rust.workspaceShell {
@@ -40,10 +49,30 @@
             p.rust-bin.stable.latest.default
             p.rust-bin.stable.latest.rust-analyzer
           ];
+          LD_LIBRARY_PATH = let p = pkgs; in lib.makeLibraryPath [ ];
         };
 
-        LD_LIBRARY_PATH = let p = pkgs; in lib.makeLibraryPath [ ];
-
         packages.default = rust.argon;
+
+        apps.bench = {
+          type = "app";
+          program = builtins.toString (pkgs.writeShellScript "bench" ''
+            export PATH=${
+              lib.strings.makeBinPath [
+                pkgs.bash
+                pkgs.coreutils
+                pkgs.gron
+                pkgs.wget
+                rust.argon
+              ]
+            }
+            cd ''${TMPDIR:-/tmp}
+            printf "@ $(pwd)"
+            printf "\ngron:"
+            time gron ${large-file-json} > gron.result
+            printf "\nargon:"
+            time argon ${large-file-json} > argon.result
+          '');
+        };
       });
 }
