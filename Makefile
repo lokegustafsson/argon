@@ -1,4 +1,4 @@
-.PHONY: bench compare test
+.PHONY: bench compare test flamegraph
 
 bench:
 	nix run '.#bench'
@@ -8,3 +8,6 @@ compare:
 
 test:
 	nix run '.#test'
+
+flamegraph:
+	nix run '.#flamegraph'

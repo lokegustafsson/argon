@@ -119,6 +119,20 @@
               diff <(echo $G2) <(echo $A2)
             '');
           };
+          flamegraph = {
+            type = "app";
+            program = builtins.toString (pkgs.writeShellScript "flamegraph" ''
+              export PATH=${
+                lib.strings.makeBinPath [
+                  pkgs.bash
+                  pkgs.coreutils
+                  pkgs.cargo-flamegraph
+                  rust.argon
+                ]
+              }
+              flamegraph -- argon ${large-file-json} > /dev/null
+            '');
+          };
         };
       });
 }
