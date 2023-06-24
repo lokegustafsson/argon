@@ -30,12 +30,13 @@
             (mkNativeDep "argon" [ ])
             (mkOverride "simd-json" (old: {
               patches = (if old ? patches then old.patches else [ ])
-                ++ [ ./patches/simd-json-keep-escaped.patch ];
+                ++ [ ./patches/avx2_deser.patch ./patches/charutils.patch ];
             }))
           ];
         };
         large-file-json = pkgs.fetchurl {
-          url = "https://raw.githubusercontent.com/json-iterator/test-data/master/large-file.json";
+          url =
+            "https://raw.githubusercontent.com/json-iterator/test-data/master/large-file.json";
           sha256 = "sha256-T8HlLE5gn+vQXXWiTIS8aVf6TSz7DV++u6xlC9x+2MA=";
         };
       in {

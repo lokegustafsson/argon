@@ -153,9 +153,41 @@ impl<'de> Deserializer<'de> {
                 // we compare the pointers since we care if they are 'at the same spot'
                 // not if they are the same value
             }
-            // PATCHED: We keep escape sequences as-is (both `\u1234` and `\n` styles)
-            src_i += 32;
-            dst_i += 32;
+            if (quote_bits.wrapping_sub(1) & bs_bits) != 0 {
+                // find out where the backspace is
+                let bs_dist: u32 = bs_bits.trailing_zeros();
+                let escape_char: u8 =
+                    unsafe { *src.get_kinda_unchecked(src_i + bs_dist as usize + 1) };
+                // we encountered backslash first. Handle backslash
+                if escape_char == b'u' {
+                    // move src/dst up to the start; they will be further adjusted
+                    // within the unicode codepoint handling code.
+                    src_i += bs_dist as usize;
+                    dst_i += bs_dist as usize;
+                    let (o, s) = if let Ok(r) = handle_unicode_codepoint(
+                        unsafe { src.get_kinda_unchecked(src_i..) },
+                        unsafe { buffer.get_kinda_unchecked_mut(dst_i..) },
+                    ) {
+                        r
+                    } else {
+                        return Err(Self::error_c(src_i, 'u', InvalidUnicodeCodepoint));
+                    };
+                    if o == 0 {
+                        return Err(Self::error_c(src_i, 'u', InvalidUnicodeCodepoint));
+                    };
+                    // We moved o steps forward at the destination and 6 on the source
+                    src_i += s;
+                    dst_i += o;
+                } else {
+                    src_i += bs_dist as usize + 2;
+                    dst_i += bs_dist as usize + 2;
+                }
+            } else {
+                // they are the same. Since they can't co-occur, it means we encountered
+                // neither.
+                src_i += 32;
+                dst_i += 32;
+            }
         }
     }
 }

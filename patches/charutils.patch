@@ -1,0 +1,70 @@
+--- a/src/charutils.rs
++++ b/src/charutils.rs
+@@ -85,9 +85,64 @@ pub fn hex_to_u32_nocheck(src: &[u8]) -> u32 {
+ #[allow(clippy::cast_possible_truncation)]
+ pub fn codepoint_to_utf8(cp: u32, c: &mut [u8]) -> usize {
+     unsafe {
+-        if cp <= 0x7F {
+-            *c.get_kinda_unchecked_mut(0) = cp as u8;
+-            return 1; // ascii
++        if cp <= 0x9F {
++            match cp as u8 {
++                b'"' => {
++                    *c.get_kinda_unchecked_mut(0) = b'\\';
++                    *c.get_kinda_unchecked_mut(1) = b'"';
++                    return 2;
++                },
++                b'\\' => {
++                    *c.get_kinda_unchecked_mut(0) = b'\\';
++                    *c.get_kinda_unchecked_mut(1) = b'\\';
++                    return 2;
++                },
++                0x08 => {
++                    *c.get_kinda_unchecked_mut(0) = b'\\';
++                    *c.get_kinda_unchecked_mut(1) = b'b';
++                    return 2;
++                },
++                0x0C => {
++                    *c.get_kinda_unchecked_mut(0) = b'\\';
++                    *c.get_kinda_unchecked_mut(1) = b'f';
++                    return 2;
++                },
++                b'\n' => {
++                    *c.get_kinda_unchecked_mut(0) = b'\\';
++                    *c.get_kinda_unchecked_mut(1) = b'n';
++                    return 2;
++                },
++                b'\r' => {
++                    *c.get_kinda_unchecked_mut(0) = b'\\';
++                    *c.get_kinda_unchecked_mut(1) = b'r';
++                    return 2;
++                },
++                b'\t' => {
++                    *c.get_kinda_unchecked_mut(0) = b'\\';
++                    *c.get_kinda_unchecked_mut(1) = b't';
++                    return 2;
++                },
++                control if control <= 0x1F || (control >= 0x7F && control <= 0x9F)  => {
++                    fn nibble_to_digit(v: u8) -> u8 {
++                        if v <= 9 {
++                            b'0' + v
++                        } else {
++                            b'A' - 10 + v
++                        }
++                    }
++                    *c.get_kinda_unchecked_mut(0) = b'\\';
++                    *c.get_kinda_unchecked_mut(1) = b'u';
++                    *c.get_kinda_unchecked_mut(2) = b'0';
++                    *c.get_kinda_unchecked_mut(3) = b'0';
++                    *c.get_kinda_unchecked_mut(4) = nibble_to_digit(control >> 4);
++                    *c.get_kinda_unchecked_mut(5) = nibble_to_digit(control & 0x0F);
++                    return 6;
++                }
++                _ => {
++                    *c.get_kinda_unchecked_mut(0) = cp as u8;
++                    return 1; // ascii
++                },
++            }
+         }
+         if cp <= 0x7FF {
+             *c.get_kinda_unchecked_mut(0) = ((cp >> 6) + 192) as u8;

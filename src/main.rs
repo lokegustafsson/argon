@@ -5,7 +5,7 @@ use simd_json::value::borrowed::Value;
 use std::{
     cell::RefCell,
     fmt, fs,
-    io::{self, BufWriter, StdoutLock},
+    io::{self, BufWriter, StdoutLock, Read},
     mem,
     path::Path,
     process::ExitCode,
@@ -16,7 +16,7 @@ use tracing_subscriber::{filter::targets::Targets, layer::Layer};
 #[command(about, verbatim_doc_comment)]
 struct Args {
     /// Filesystem path or URL to the json file to process.
-    path_or_url_to_json: String,
+    path_or_url_to_json: Option<String>,
 }
 
 fn main() -> ExitCode {
@@ -47,22 +47,29 @@ fn main() -> ExitCode {
     }));
 
     let args: Args = clap::Parser::parse();
-    let target = Path::new(&args.path_or_url_to_json);
-    if let Some(extension) = target.extension() {
-        if extension != "json" {
-            tracing::warn!("target missing json file extension; proceeding anyway");
-        }
-    } else {
-        tracing::error!("cannot process a directory");
-        return ExitCode::FAILURE;
-    }
 
-    let mut buf = match fs::read(target) {
-        Ok(buf) => buf,
-        Err(err) => {
-            tracing::error!(?err, "could not read file");
+    let mut buf = if let Some(path_or_url_to_json) = &args.path_or_url_to_json {
+        let target = Path::new(path_or_url_to_json);
+        if let Some(extension) = target.extension() {
+            if extension != "json" {
+                tracing::warn!("target missing json file extension; proceeding anyway");
+            }
+        } else {
+            tracing::error!("cannot process a directory");
             return ExitCode::FAILURE;
         }
+
+        match fs::read(target) {
+            Ok(buf) => buf,
+            Err(err) => {
+                tracing::error!(?err, "could not read file");
+                return ExitCode::FAILURE;
+            }
+        }
+    } else {
+        let mut ret = Vec::new();
+        io::stdin().lock().read_to_end(&mut ret).unwrap();
+        ret
     };
 
     let json = match simd_json::value::borrowed::to_value(&mut buf) {
@@ -108,7 +115,7 @@ fn process_recursively(json: &Value<'_>) {
             Value::String(val) => {
                 use io::Write;
                 let locals: &mut Locals = &mut locals;
-                writeln!(locals.output, "{} = {val:?};", locals.stack).unwrap();
+                writeln!(locals.output, "{} = \"{val}\";", locals.stack).unwrap();
             }
             Value::Array(array) => {
                 {
