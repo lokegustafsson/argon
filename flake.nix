@@ -51,6 +51,7 @@
             p.rust-bin.stable.latest.rust-analyzer
           ];
           LD_LIBRARY_PATH = let p = pkgs; in lib.makeLibraryPath [ ];
+          LARGE_FILE_JSON = large-file-json;
         };
 
         packages.default = rust.argon;
@@ -59,6 +60,22 @@
           bench = {
             type = "app";
             program = builtins.toString (pkgs.writeShellScript "bench" ''
+              export PATH=${
+                lib.strings.makeBinPath [
+                  pkgs.bash
+                  pkgs.coreutils
+                  pkgs.gron
+                  pkgs.wget
+                  rust.argon
+                ]
+              }
+              set -v
+              time argon ${large-file-json} > /dev/null
+            '');
+          };
+          compare = {
+            type = "app";
+            program = builtins.toString (pkgs.writeShellScript "compare" ''
               export PATH=${
                 lib.strings.makeBinPath [
                   pkgs.bash

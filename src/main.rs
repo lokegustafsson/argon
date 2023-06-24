@@ -115,7 +115,9 @@ fn process_recursively(json: &Value<'_>) {
             Value::String(val) => {
                 use io::Write;
                 let locals: &mut Locals = &mut locals;
-                writeln!(locals.output, "{} = \"{val}\";", locals.stack).unwrap();
+                locals.output.write_all(b"{} = \"").unwrap();
+                locals.output.write_all(val.as_bytes()).unwrap();
+                locals.output.write_all(b"\";\n").unwrap();
             }
             Value::Array(array) => {
                 {
