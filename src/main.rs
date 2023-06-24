@@ -6,7 +6,7 @@ use std::{
     cell::RefCell,
     fmt, fs,
     io::{self, BufWriter, Read, StdoutLock},
-    mem,
+    mem::{self, ManuallyDrop},
     path::Path,
     process::ExitCode,
 };
@@ -81,6 +81,10 @@ fn main() -> ExitCode {
     };
 
     process_recursively(&json);
+
+    // Leak `json` and `buf` for quicker exit
+    let _ = ManuallyDrop::new(json);
+    let _ = ManuallyDrop::new(buf);
     ExitCode::SUCCESS
 }
 
