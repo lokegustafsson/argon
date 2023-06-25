@@ -2,7 +2,7 @@ use rayon::{iter::ParallelIterator, str::ParallelString};
 use simd_json::{value::borrowed::Value, StaticNode};
 use std::{
     borrow::Cow,
-    io::{self, BufWriter},
+    io::{self, BufWriter, Write},
     mem::{self, ManuallyDrop},
 };
 
@@ -20,6 +20,7 @@ pub fn process(data: &[u8]) -> Result<(), ()> {
 
     let mut output = BufWriter::new(io::stdout().lock());
     simd_json::to_writer_pretty(&mut output, &json).unwrap();
+    output.write_all(b"\n").unwrap();
 
     // Leak `json` for quicker exit
     let _ = ManuallyDrop::new(json);
@@ -119,7 +120,7 @@ fn merge_json<'a>(j1: Value<'a>, j2: Value<'a>) -> Value<'a> {
         }),
         (Value::Array(mut a1), Value::Array(mut a2)) => Value::Array({
             a1.append(&mut a2);
-            a2
+            a1
         }),
         (Value::Static(StaticNode::Null), any) => any,
         (any, Value::Static(StaticNode::Null)) => any,

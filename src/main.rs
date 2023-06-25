@@ -47,7 +47,7 @@ fn main_impl() -> Result<(), ()> {
         if let Ok(url_to_json) = Url::parse(path_or_url_to_json) {
             from_url(url_to_json)?
         } else {
-            from_file(Path::new(path_or_url_to_json))?
+            from_file(Path::new(path_or_url_to_json), args.ungron)?
         }
     } else {
         let mut buf = Vec::new();
@@ -87,6 +87,7 @@ fn setup_logging(verbose: bool) {
             .with_subscriber(
                 tracing_subscriber::FmtSubscriber::builder()
                     .with_max_level(tracing::Level::TRACE)
+                    .with_writer(io::stderr)
                     .finish(),
             ),
     )
@@ -128,10 +129,10 @@ fn from_url(url: Url) -> Result<Vec<u8>, ()> {
         Err(())
     }
 }
-fn from_file(path: &Path) -> Result<Vec<u8>, ()> {
+fn from_file(path: &Path, ungron: bool) -> Result<Vec<u8>, ()> {
     let target = Path::new(path);
     if let Some(extension) = target.extension() {
-        if extension != "json" {
+        if !ungron && extension != "json" {
             tracing::warn!("target missing json file extension; proceeding anyway");
         }
     } else {

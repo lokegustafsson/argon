@@ -87,12 +87,16 @@
               }
               cd ''${TMPDIR:-/tmp}
               printf "@ $(pwd)"
-              printf "\ngron unsorted:"
-              time gron --no-sort ${large-file-json} > gron-nosort.result
+
               printf "\ngron:"
               time gron ${large-file-json} > gron.result
               printf "\nargon:"
               time argon ${large-file-json} > argon.result
+
+              printf "\ngron --ungron:"
+              time gron --ungron gron.result > gron.json
+              printf "\nargon --ungron:"
+              time argon --ungron argon.result > argon.json
             '');
           };
           test = {
