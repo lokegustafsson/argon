@@ -1,9 +1,9 @@
 use simd_json::value::borrowed::Value;
 use std::{
-    cell::RefCell,
+    cell::{RefCell, UnsafeCell},
     fmt,
     io::{self, BufWriter, StdoutLock},
-    mem::{self, ManuallyDrop},
+    mem::{self, ManuallyDrop, MaybeUninit},
 };
 
 pub fn process(buf: &mut [u8], have_color: bool) -> Result<(), ()> {
@@ -15,7 +15,7 @@ pub fn process(buf: &mut [u8], have_color: bool) -> Result<(), ()> {
         }
     };
 
-    LOCALS.with(|cell| *cell.borrow_mut() = Some(Locals::new(have_color)));
+    LOCALS.with(|cell| unsafe { *cell.get() = MaybeUninit::new(Locals::new(have_color)) });
     if have_color {
         process_recursively::<true>(&json);
     } else {
@@ -33,8 +33,12 @@ const ANSI_STR: &str = "\x1B[32m";
 const ANSI_BRACE: &str = "\x1B[35m";
 const ANSI_RESET: &str = "\x1B[0m";
 
+fn lget(cell: &UnsafeCell<MaybeUninit<Locals>>) -> &mut Locals {
+    unsafe { (*cell.get()).assume_init_mut() }
+}
+
 thread_local! {
-    static LOCALS: RefCell<Option<Locals>> = RefCell::new(None);
+    static LOCALS: UnsafeCell<MaybeUninit<Locals>> = UnsafeCell::new(MaybeUninit::uninit());
 }
 struct Locals {
     output: BufWriter<StdoutLock<'static>>,
@@ -57,12 +61,10 @@ impl Locals {
 
 fn process_recursively<const COLOR: bool>(json: &Value<'_>) {
     LOCALS.with(|cell| {
-        let mut locals = cell.borrow_mut();
-
+        let mut locals = lget(cell);
         match json {
             Value::Static(val) => {
                 use io::Write;
-                let locals: &mut Locals = locals.as_mut().unwrap();
                 if COLOR {
                     writeln!(
                         locals.output,
@@ -76,7 +78,6 @@ fn process_recursively<const COLOR: bool>(json: &Value<'_>) {
             }
             Value::String(val) => {
                 use io::Write;
-                let locals: &mut Locals = locals.as_mut().unwrap();
                 if COLOR {
                     writeln!(
                         locals.output,
@@ -91,7 +92,6 @@ fn process_recursively<const COLOR: bool>(json: &Value<'_>) {
             Value::Array(array) => {
                 {
                     use io::Write;
-                    let locals: &mut Locals = locals.as_mut().unwrap();
                     if COLOR {
                         writeln!(
                             locals.output,
@@ -107,7 +107,6 @@ fn process_recursively<const COLOR: bool>(json: &Value<'_>) {
                     use fmt::Write;
                     for (i, item) in array.iter().enumerate() {
                         {
-                            let locals: &mut Locals = locals.as_mut().unwrap();
                             locals.stack_item_starts.push(locals.stack.len());
                             if COLOR {
                                 write!(
@@ -121,9 +120,8 @@ fn process_recursively<const COLOR: bool>(json: &Value<'_>) {
                         }
                         mem::drop(locals);
                         process_recursively::<COLOR>(item);
-                        locals = cell.borrow_mut();
+                        locals = lget(cell);
                         {
-                            let locals: &mut Locals = locals.as_mut().unwrap();
                             locals
                                 .stack
                                 .truncate(locals.stack_item_starts.pop().unwrap());
@@ -134,7 +132,6 @@ fn process_recursively<const COLOR: bool>(json: &Value<'_>) {
             Value::Object(object) => {
                 {
                     use io::Write;
-                    let locals: &mut Locals = locals.as_mut().unwrap();
                     if COLOR {
                         writeln!(
                             locals.output,
@@ -153,7 +150,6 @@ fn process_recursively<const COLOR: bool>(json: &Value<'_>) {
                     object.sort_unstable_by_key(|&(k, _)| k);
                     for (key, value) in object {
                         {
-                            let locals: &mut Locals = locals.as_mut().unwrap();
                             locals.stack_item_starts.push(locals.stack.len());
                             let dot = if locals.stack.is_empty() { "" } else { "." };
                             if COLOR {
@@ -165,9 +161,8 @@ fn process_recursively<const COLOR: bool>(json: &Value<'_>) {
                         }
                         mem::drop(locals);
                         process_recursively::<COLOR>(value);
-                        locals = cell.borrow_mut();
+                        locals = lget(cell);
                         {
-                            let locals: &mut Locals = locals.as_mut().unwrap();
                             locals
                                 .stack
                                 .truncate(locals.stack_item_starts.pop().unwrap());
