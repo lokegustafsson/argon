@@ -69,8 +69,11 @@
                   rust.argon
                 ]
               }
+              cd ''${TMPDIR:-/tmp}
+              printf "@ $(pwd)\n"
               set -v
-              time argon ${large-file-json} > /dev/null
+              time argon ${large-file-json} > large-file.argon
+              time argon --ungron large-file.argon > large-file.json
             '');
           };
           compare = {
