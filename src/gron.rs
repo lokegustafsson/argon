@@ -3,16 +3,28 @@ use std::{
     cell::RefCell,
     fmt,
     io::{self, BufWriter, StdoutLock},
-    mem,
+    mem::{self, ManuallyDrop},
 };
 
-pub fn process(json: &Value, have_color: bool) {
+pub fn process(buf: &mut [u8], have_color: bool) -> Result<(), ()> {
+    let json = match simd_json::value::borrowed::to_value(buf) {
+        Ok(json) => json,
+        Err(err) => {
+            tracing::error!(?err, "could not parse json");
+            return Err(());
+        }
+    };
+
     LOCALS.with(|cell| *cell.borrow_mut() = Some(Locals::new(have_color)));
     if have_color {
         process_recursively::<true>(&json);
     } else {
         process_recursively::<false>(&json);
     }
+
+    // Leak `json` for quicker exit
+    let _ = ManuallyDrop::new(json);
+    Ok(())
 }
 
 const ANSI_KEY: &str = "\x1B[34m";

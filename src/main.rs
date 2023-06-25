@@ -12,6 +12,7 @@ use tracing_subscriber::{filter::targets::Targets, layer::Layer};
 use url::Url;
 
 mod gron;
+mod ungron;
 
 #[derive(clap::Parser, Debug)]
 #[command(about, verbatim_doc_comment)]
@@ -28,6 +29,8 @@ struct Args {
     color: bool,
     #[arg(short, long)]
     no_color: bool,
+    #[arg(short, long)]
+    ungron: bool,
 }
 
 fn main() -> ExitCode {
@@ -52,23 +55,17 @@ fn main_impl() -> Result<(), ()> {
         buf
     };
 
-    let json = match simd_json::value::borrowed::to_value(&mut buf) {
-        Ok(json) => json,
-        Err(err) => {
-            tracing::error!(?err, "could not parse json");
-            return Err(());
-        }
-    };
-
-    let have_color = match (args.color, args.no_color, atty::is(atty::Stream::Stdout)) {
-        (true, false, _) => true,
-        (false, true, _) => false,
-        (_, _, tty) => tty,
-    };
-    gron::process(&json, have_color);
-
-    // Leak `json` and `buf` for quicker exit
-    let _ = ManuallyDrop::new(json);
+    if args.ungron {
+        ungron::process(&buf)?;
+    } else {
+        let have_color = match (args.color, args.no_color, atty::is(atty::Stream::Stdout)) {
+            (true, false, _) => true,
+            (false, true, _) => false,
+            (_, _, tty) => tty,
+        };
+        gron::process(&mut buf, have_color)?;
+    }
+    // Leak `buf` for quicker exit
     let _ = ManuallyDrop::new(buf);
     Ok(())
 }
