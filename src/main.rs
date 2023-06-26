@@ -15,6 +15,7 @@ use tracing_subscriber::{filter::targets::Targets, layer::Layer};
 use url::Url;
 
 mod gron;
+mod seccomp;
 mod ungron;
 
 #[derive(clap::Parser, Debug)]
@@ -57,6 +58,8 @@ fn main_impl() -> Result<(), ()> {
         io::stdin().lock().read_to_end(&mut buf).unwrap();
         buf
     };
+
+    seccomp::setup_seccomp(args.ungron);
 
     if args.ungron {
         ungron::process(&buf)?;
