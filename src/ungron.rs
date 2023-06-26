@@ -21,6 +21,7 @@ pub fn process(data: &[u8]) -> Result<(), ()> {
     let mut output = BufWriter::new(io::stdout().lock());
     simd_json::to_writer_pretty(&mut output, &json).unwrap();
     output.write_all(b"\n").unwrap();
+    output.flush().unwrap();
 
     // Leak `json` for quicker exit
     let _ = ManuallyDrop::new(json);
@@ -76,7 +77,7 @@ fn add_line_to_json_impl<'a>(mut json: &mut Value<'a>, mut line: &'a str) {
                                 .unwrap()
                                 .strip_suffix("\";")
                                 .unwrap(),
-                        ))
+                        ));
                     }
                     b'n' | b'{' | b'[' => {}
                     b't' => *json = Value::Static(StaticNode::Bool(true)),

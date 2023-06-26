@@ -1,6 +1,6 @@
 use simd_json::value::borrowed::Value;
 use std::{
-    cell::{RefCell, UnsafeCell},
+    cell::UnsafeCell,
     fmt,
     io::{self, BufWriter, StdoutLock},
     mem::{self, ManuallyDrop, MaybeUninit},
@@ -21,6 +21,10 @@ pub fn process(buf: &mut [u8], have_color: bool) -> Result<(), ()> {
     } else {
         process_recursively::<false>(&json);
     }
+    LOCALS.with(|cell| {
+        use io::Write;
+        lget(cell).output.flush().unwrap()
+    });
 
     // Leak `json` for quicker exit
     let _ = ManuallyDrop::new(json);

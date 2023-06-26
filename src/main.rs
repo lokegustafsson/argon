@@ -1,6 +1,9 @@
 #[cfg(not(target_feature = "avx2"))]
 compile_error!("unexpectedly missing required feature AVX2");
 
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 use std::{
     fs,
     io::{self, Read},
