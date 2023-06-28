@@ -18,6 +18,9 @@ mod gron;
 mod seccomp;
 mod ungron;
 
+#[cfg(test)]
+mod test;
+
 #[derive(clap::Parser, Debug)]
 #[command(about, verbatim_doc_comment)]
 /// Example invocations:
