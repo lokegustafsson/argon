@@ -61,15 +61,17 @@ fn main_impl() -> Result<(), ()> {
 
     seccomp::setup_seccomp(args.ungron);
 
+    let output = Box::new(io::stdout().lock());
+
     if args.ungron {
-        ungron::process(&buf)?;
+        ungron::process(&buf, output)?;
     } else {
         let have_color = match (args.color, args.no_color, atty::is(atty::Stream::Stdout)) {
             (true, false, _) => true,
             (false, true, _) => false,
             (_, _, tty) => tty,
         };
-        gron::process(&mut buf, have_color)?;
+        gron::process(&mut buf, have_color, output)?;
     }
     // Leak `buf` for quicker exit
     let _ = ManuallyDrop::new(buf);

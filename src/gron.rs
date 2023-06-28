@@ -2,11 +2,11 @@ use simd_json::value::borrowed::Value;
 use std::{
     cell::UnsafeCell,
     fmt,
-    io::{self, BufWriter, StdoutLock},
+    io::{self, BufWriter},
     mem::{self, ManuallyDrop, MaybeUninit},
 };
 
-pub fn process(buf: &mut [u8], have_color: bool) -> Result<(), ()> {
+pub fn process(buf: &mut [u8], have_color: bool, output: Box<dyn io::Write>) -> Result<(), ()> {
     let json = match simd_json::value::borrowed::to_value(buf) {
         Ok(json) => json,
         Err(err) => {
@@ -15,7 +15,7 @@ pub fn process(buf: &mut [u8], have_color: bool) -> Result<(), ()> {
         }
     };
 
-    LOCALS.with(|cell| unsafe { *cell.get() = MaybeUninit::new(Locals::new(have_color)) });
+    LOCALS.with(|cell| unsafe { *cell.get() = MaybeUninit::new(Locals::new(have_color, output)) });
     if have_color {
         process_recursively::<true>(&json);
     } else {
@@ -45,14 +45,14 @@ thread_local! {
     static LOCALS: UnsafeCell<MaybeUninit<Locals>> = UnsafeCell::new(MaybeUninit::uninit());
 }
 struct Locals {
-    output: BufWriter<StdoutLock<'static>>,
+    output: BufWriter<Box<dyn io::Write>>,
     stack: String,
     stack_item_starts: Vec<usize>,
 }
 impl Locals {
-    fn new(color: bool) -> Self {
+    fn new(color: bool, output: Box<dyn io::Write>) -> Self {
         Self {
-            output: BufWriter::new(io::stdout().lock()),
+            output: BufWriter::new(output),
             stack: if color {
                 format!("{ANSI_KEY}json{ANSI_RESET}")
             } else {

@@ -2,11 +2,11 @@ use rayon::{iter::ParallelIterator, str::ParallelString};
 use simd_json::{value::borrowed::Value, StaticNode};
 use std::{
     borrow::Cow,
-    io::{self, BufWriter, Write},
+    io::{BufWriter, Write},
     mem::{self, ManuallyDrop},
 };
 
-pub fn process(data: &[u8]) -> Result<(), ()> {
+pub fn process(data: &[u8], output: Box<dyn Write>) -> Result<(), ()> {
     if data.is_empty() {
         tracing::error!("got EOF");
         return Err(());
@@ -18,7 +18,7 @@ pub fn process(data: &[u8]) -> Result<(), ()> {
         .fold_with(Value::Static(StaticNode::Null), add_line_to_json)
         .reduce(|| Value::Static(StaticNode::Null), merge_json);
 
-    let mut output = BufWriter::new(io::stdout().lock());
+    let mut output = BufWriter::new(output);
     simd_json::to_writer_pretty(&mut output, &json).unwrap();
     output.write_all(b"\n").unwrap();
     output.flush().unwrap();
