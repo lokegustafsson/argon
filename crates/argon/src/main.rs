@@ -24,7 +24,7 @@ mod test;
 #[derive(clap::Parser, Debug)]
 #[command(about, verbatim_doc_comment)]
 /// Example invocations:
-/// - `echo '[1,"abc\r\ncba]' | argon`
+/// - `echo '[1,"abc\r\ncba"]' | argon`
 /// - `argon path/to/something.json`
 /// - `argon https://api.github.com/repos/lokegustafsson/argon/commits?per_page=1`
 struct Args {
