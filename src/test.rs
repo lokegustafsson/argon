@@ -22,14 +22,22 @@ fn roundtrip_cases() {
 }
 "#,
         r#"{
-  "abc\n": "abc\n\t"
+  "abc\n\t": "abc\n\t",
+  "abc": 123
 }
 "#,
     ];
 
     for sample in SAMPLES {
-        let g = gron(sample);
-        assert_eq!(&ungron(g.as_bytes()), sample, "gron: {}", g);
+        let lines = gron(sample);
+        dbg!(&lines);
+        let json = ungron(lines.as_bytes());
+        if &json != sample {
+            panic!(
+                "roundtrip test failure\nsample = {}\nlines = {}\njson = {}",
+                sample, lines, json
+            );
+        }
     }
 }
 
