@@ -34,6 +34,21 @@
             }))
           ];
         };
+        patched-simd-json-src = let
+          gzipped = pkgs.fetchurl {
+            url = "https://crates.io/api/v1/crates/simd-json/0.10.3/download";
+            sha256 = "sha256-o9CBXn/w8fBeCdSwKfhtijMPCrFbNbKHNvN1gyX1nhQ=";
+          };
+        in pkgs.runCommand "patched-simd-json-src" { } ''
+          cp ${gzipped} src.tar.gz
+          tar xvf src.tar.gz
+          mv simd-json-0.10.3 $out
+          cd $out
+          pwd
+          ls
+          patch -s --strip=1 < ${./patches/avx2_deser.patch}
+          patch -s --strip=1 < ${./patches/charutils.patch}
+        '';
         large-file-json = pkgs.fetchurl {
           url =
             "https://raw.githubusercontent.com/json-iterator/test-data/master/large-file.json";
@@ -52,6 +67,7 @@
           ];
           LD_LIBRARY_PATH = let p = pkgs; in lib.makeLibraryPath [ ];
           LARGE_FILE_JSON = large-file-json;
+          PATCHED_SIMD_JSON_SRC = patched-simd-json-src;
         };
 
         packages.default = rust.argon;
