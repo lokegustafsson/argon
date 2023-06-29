@@ -34,7 +34,18 @@ fn roundtrip_cases() {
         let json = ungron(lines.as_bytes());
         if &json != sample {
             panic!(
-                "roundtrip test failure\nsample = {}\nlines = {}\njson = {}",
+                concat!(
+                    "roundtrip test failure\n",
+                    "BEGIN SAMPLE\n",
+                    "{}\n",
+                    "END SAMPLE\n",
+                    "BEGIN LINES\n",
+                    "{}\n",
+                    "END LINES\n",
+                    "BEGIN JSON\n",
+                    "{}\n",
+                    "END JSON",
+                ),
                 sample, lines, json
             );
         }
