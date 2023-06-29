@@ -1,6 +1,16 @@
 --- a/src/avx2/deser.rs
 +++ b/src/avx2/deser.rs
-@@ -179,20 +179,11 @@ impl<'de> Deserializer<'de> {
+@@ -35,6 +35,9 @@ impl<'de> Deserializer<'de> {
+         buffer: &'invoke mut [u8],
+         mut idx: usize,
+     ) -> Result<&'de str> {
++        let _ = &InvalidEscape;
++        let _ = &ESCAPE_MAP;
++
+         use ErrorType::{InvalidEscape, InvalidUnicodeCodepoint};
+         let input: &mut [u8] = unsafe { std::mem::transmute(input) };
+         // Add 1 to skip the initial "
+@@ -179,20 +182,11 @@ impl<'de> Deserializer<'de> {
                      src_i += s;
                      dst_i += o;
                  } else {

@@ -1,4 +1,4 @@
-use simd_json::value::borrowed::Value;
+use patched_simd_json::value::borrowed::{self, Value};
 use std::{
     cell::UnsafeCell,
     fmt,
@@ -7,7 +7,7 @@ use std::{
 };
 
 pub fn process(buf: &mut [u8], have_color: bool, output: Box<dyn io::Write>) -> Result<(), ()> {
-    let json = match simd_json::value::borrowed::to_value(buf) {
+    let json = match borrowed::to_value(buf) {
         Ok(json) => json,
         Err(err) => {
             tracing::error!(?err, "could not parse json");

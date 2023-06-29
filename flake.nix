@@ -67,7 +67,6 @@
           ];
           LD_LIBRARY_PATH = let p = pkgs; in lib.makeLibraryPath [ ];
           LARGE_FILE_JSON = large-file-json;
-          PATCHED_SIMD_JSON_SRC = patched-simd-json-src;
         };
 
         packages.default = rust.argon;
@@ -155,6 +154,30 @@
               }
               flamegraph -- argon ${large-file-json} > /dev/null
             '');
+          };
+          cargo2nix-extra = {
+            type = "app";
+            program = builtins.toString (pkgs.writeShellApplication {
+              name = "cargo2nix-extra";
+
+              runtimeInputs = [
+                pkgs.bash
+                pkgs.coreutils
+                cargo2nix.outputs.packages.${system}.cargo2nix
+              ];
+
+              text = ''
+                BASE=$(basename "$(pwd)")
+                if [ "$BASE" != "argon" ]; then
+                    echo "Must be run from the argon source tree root!"
+                    exit 1
+                fi
+                set -v
+                rm ./crates/patched-simd-json || true
+                ln -s ${patched-simd-json-src} ./crates/patched-simd-json
+                cargo2nix -f
+              '';
+            }) + "/bin/cargo2nix-extra";
           };
         };
       });

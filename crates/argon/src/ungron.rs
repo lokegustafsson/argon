@@ -1,5 +1,5 @@
+use patched_simd_json::{value::borrowed::Value, StaticNode};
 use rayon::{iter::ParallelIterator, str::ParallelString};
-use simd_json::{value::borrowed::Value, StaticNode};
 use std::{
     borrow::Cow,
     io::{BufWriter, Write},
@@ -19,7 +19,7 @@ pub fn process(data: &[u8], output: Box<dyn Write>) -> Result<(), ()> {
         .reduce(|| Value::Static(StaticNode::Null), merge_json);
 
     let mut output = BufWriter::new(output);
-    simd_json::to_writer_pretty(&mut output, &json).unwrap();
+    patched_simd_json::to_writer_pretty(&mut output, &json).unwrap();
     output.write_all(b"\n").unwrap();
     output.flush().unwrap();
 

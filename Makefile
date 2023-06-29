@@ -11,3 +11,6 @@ test:
 
 flamegraph:
 	nix run '.#flamegraph'
+
+cargo2nix-extra:
+	nix run '.#cargo2nix-extra'

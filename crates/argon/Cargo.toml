@@ -11,10 +11,10 @@ clap = { version = "4", features = ["derive"] }
 libc = "0.2"
 memchr = "2"
 mimalloc = { version = "0.1", default-features = false }
+patched-simd-json = { path = "../patched-simd-json", package = "simd-json" }
 rayon = "1"
 reqwest = { version = "0.11", default-features = false, features = ["blocking", "rustls-tls"] }
 seccompiler = "0.3"
-simd-json = "0.10"
 tracing = "0.1"
 tracing-subscriber = "0.3"
 url = "2"
