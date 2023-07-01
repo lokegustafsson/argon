@@ -62,7 +62,8 @@
     ];
     text = ''
       BASE=$(basename "$(pwd)")
-      if [ "$BASE" != "argon" ]; then
+      FLAKE="$(pwd)/flake.nix"
+      if [[ ("$BASE" != "argon") || (! -f "$FLAKE") ]]; then
           echo "Must be run from the argon source tree root!"
           exit 1
       fi
