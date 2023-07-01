@@ -46,6 +46,7 @@
     runtimeInputs = [ argonBin pkgs.bash pkgs.coreutils pkgs.cargo-flamegraph ];
     text = ''
       flamegraph -- argon ${large-file-json} > /dev/null
+      printf "\nargon at file://%s/flamegraph.svg" "$(pwd)"
     '';
   };
   cargo2nix-extra = {
