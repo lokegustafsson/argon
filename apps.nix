@@ -1,6 +1,6 @@
-{ pkgs, large-file-json, rust, cargo2nix, patched-simd-json-src }: {
+{ pkgs, large-file-json, argonBin, cargo2nix, patched-simd-json-src }: {
   bench = {
-    runtimeInputs = [ pkgs.bash pkgs.coreutils pkgs.gron pkgs.wget rust.argon ];
+    runtimeInputs = [ argonBin pkgs.bash pkgs.coreutils pkgs.gron pkgs.wget ];
     text = ''
       cd ''${TMPDIR:-/tmp}
       printf "@ $(pwd)\n"
@@ -10,7 +10,7 @@
     '';
   };
   compare = {
-    runtimeInputs = [ pkgs.bash pkgs.coreutils pkgs.gron pkgs.wget rust.argon ];
+    runtimeInputs = [ argonBin pkgs.bash pkgs.coreutils pkgs.gron pkgs.wget ];
     text = ''
       cd ''${TMPDIR:-/tmp}
       printf "@ $(pwd)"
@@ -28,12 +28,12 @@
   };
   test = {
     runtimeInputs = [
+      argonBin
       pkgs.bash
       pkgs.coreutils
       pkgs.diffutils
       pkgs.gron
       pkgs.wget
-      rust.argon
     ];
     text = ''
       printf "\nComparing on escaping.json.."
@@ -49,16 +49,16 @@
   };
   flamegraph = {
     runtimeInputs =
-      [ pkgs.bash pkgs.coreutils pkgs.cargo-flamegraph rust.argon ];
+      [ argonBin pkgs.bash pkgs.coreutils pkgs.cargo-flamegraph ];
     text = ''
       flamegraph -- argon ${large-file-json} > /dev/null
     '';
   };
   cargo2nix-extra = {
     runtimeInputs = [
+      cargo2nix
       pkgs.bash
       pkgs.coreutils
-      cargo2nix
     ];
     text = ''
       BASE=$(basename "$(pwd)")

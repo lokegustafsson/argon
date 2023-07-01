@@ -71,6 +71,4 @@ let
           inherit mkNativeDep mkEnvDep mkRpath mkOverride p;
         });
   };
-in (builtins.mapAttrs (crate: f: f { }) rustPkgs.workspace) // {
-  inherit (rustPkgs) workspaceShell;
-}
+in rustPkgs.workspace // { inherit (rustPkgs) workspaceShell; }

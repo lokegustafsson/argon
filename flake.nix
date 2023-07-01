@@ -58,6 +58,9 @@
             "https://raw.githubusercontent.com/json-iterator/test-data/master/large-file.json";
           sha256 = "sha256-T8HlLE5gn+vQXXWiTIS8aVf6TSz7DV++u6xlC9x+2MA=";
         };
+
+        argonBin = (rust.argon {}).bin;
+        argonTest = pkgs.rustBuilder.runTests rust.argon {};
       in {
         devShells.default = rust.workspaceShell {
           packages = let p = pkgs;
@@ -73,7 +76,10 @@
           LARGE_FILE_JSON = large-file-json;
         };
 
-        packages.default = rust.argon;
+        packages = {
+          default = argonBin;
+          ci = argonTest;
+        };
 
         apps = builtins.mapAttrs (name: value: {
           type = "app";
@@ -81,7 +87,7 @@
             let app = pkgs.writeShellApplication (value // { inherit name; });
             in "${app}/bin/${name}";
         }) (import ./apps.nix {
-          inherit pkgs large-file-json rust patched-simd-json-src;
+          inherit argonBin pkgs large-file-json patched-simd-json-src;
           cargo2nix = cargo2nix.outputs.packages.${system}.cargo2nix;
         });
       });
