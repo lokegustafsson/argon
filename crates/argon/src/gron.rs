@@ -1,9 +1,8 @@
 use patched_simd_json::value::borrowed::{self, Value};
 use std::{
-    cell::UnsafeCell,
     fmt,
     io::{self, BufWriter},
-    mem::{self, ManuallyDrop, MaybeUninit},
+    mem::ManuallyDrop,
 };
 
 pub fn process(buf: &mut [u8], have_color: bool, output: Box<dyn io::Write>) -> Result<(), ()> {
@@ -15,16 +14,16 @@ pub fn process(buf: &mut [u8], have_color: bool, output: Box<dyn io::Write>) -> 
         }
     };
 
-    LOCALS.with(|cell| unsafe { *cell.get() = MaybeUninit::new(Locals::new(have_color, output)) });
+    let mut locals = Locals::new(have_color, output);
     if have_color {
-        process_recursively::<true>(&json);
+        process_recursively::<true>(&json, &mut locals);
     } else {
-        process_recursively::<false>(&json);
+        process_recursively::<false>(&json, &mut locals);
     }
-    LOCALS.with(|cell| {
+    {
         use io::Write;
-        lget(cell).output.flush().unwrap()
-    });
+        locals.output.flush().unwrap();
+    }
 
     // Leak `json` for quicker exit
     let _ = ManuallyDrop::new(json);
@@ -37,13 +36,6 @@ const ANSI_STR: &str = "\x1B[32m";
 const ANSI_BRACE: &str = "\x1B[35m";
 const ANSI_RESET: &str = "\x1B[0m";
 
-fn lget(cell: &UnsafeCell<MaybeUninit<Locals>>) -> &mut Locals {
-    unsafe { (*cell.get()).assume_init_mut() }
-}
-
-thread_local! {
-    static LOCALS: UnsafeCell<MaybeUninit<Locals>> = UnsafeCell::new(MaybeUninit::uninit());
-}
 struct Locals {
     output: BufWriter<Box<dyn io::Write>>,
     stack: String,
@@ -63,117 +55,109 @@ impl Locals {
     }
 }
 
-fn process_recursively<const COLOR: bool>(json: &Value<'_>) {
-    LOCALS.with(|cell| {
-        let mut locals = lget(cell);
-        match json {
-            Value::Static(val) => {
+fn process_recursively<const COLOR: bool>(json: &Value<'_>, locals: &mut Locals) {
+    match json {
+        Value::Static(val) => {
+            use io::Write;
+            if COLOR {
+                writeln!(
+                    locals.output,
+                    "{} = {ANSI_NUM}{val}{ANSI_RESET};",
+                    locals.stack
+                )
+                .unwrap();
+            } else {
+                writeln!(locals.output, "{} = {val};", locals.stack).unwrap();
+            }
+        }
+        Value::String(val) => {
+            use io::Write;
+            if COLOR {
+                writeln!(
+                    locals.output,
+                    "{} = \"{ANSI_STR}{val}{ANSI_RESET}\";",
+                    locals.stack
+                )
+                .unwrap();
+            } else {
+                writeln!(locals.output, "{} = \"{val}\";", locals.stack).unwrap();
+            }
+        }
+        Value::Array(array) => {
+            {
                 use io::Write;
                 if COLOR {
                     writeln!(
                         locals.output,
-                        "{} = {ANSI_NUM}{val}{ANSI_RESET};",
+                        "{} = {ANSI_BRACE}[]{ANSI_RESET};",
                         locals.stack
                     )
                     .unwrap();
                 } else {
-                    writeln!(locals.output, "{} = {val};", locals.stack).unwrap();
+                    writeln!(locals.output, "{} = [];", locals.stack).unwrap();
                 }
             }
-            Value::String(val) => {
-                use io::Write;
-                if COLOR {
-                    writeln!(
-                        locals.output,
-                        "{} = \"{ANSI_STR}{val}{ANSI_RESET}\";",
-                        locals.stack
-                    )
-                    .unwrap();
-                } else {
-                    writeln!(locals.output, "{} = \"{val}\";", locals.stack).unwrap();
-                }
-            }
-            Value::Array(array) => {
-                {
-                    use io::Write;
-                    if COLOR {
-                        writeln!(
-                            locals.output,
-                            "{} = {ANSI_BRACE}[]{ANSI_RESET};",
-                            locals.stack
-                        )
-                        .unwrap();
-                    } else {
-                        writeln!(locals.output, "{} = [];", locals.stack).unwrap();
-                    }
-                }
-                {
-                    use fmt::Write;
-                    for (i, item) in array.iter().enumerate() {
-                        {
-                            locals.stack_item_starts.push(locals.stack.len());
-                            if COLOR {
-                                write!(
-                                    &mut locals.stack,
-                                    "{ANSI_BRACE}[{ANSI_NUM}{i}{ANSI_BRACE}]{ANSI_RESET}"
-                                )
-                                .unwrap();
-                            } else {
-                                write!(&mut locals.stack, "[{i}]").unwrap();
-                            }
-                        }
-                        mem::drop(locals);
-                        process_recursively::<COLOR>(item);
-                        locals = lget(cell);
-                        {
-                            locals
-                                .stack
-                                .truncate(locals.stack_item_starts.pop().unwrap());
+            {
+                use fmt::Write;
+                for (i, item) in array.iter().enumerate() {
+                    {
+                        locals.stack_item_starts.push(locals.stack.len());
+                        if COLOR {
+                            write!(
+                                &mut locals.stack,
+                                "{ANSI_BRACE}[{ANSI_NUM}{i}{ANSI_BRACE}]{ANSI_RESET}"
+                            )
+                            .unwrap();
+                        } else {
+                            write!(&mut locals.stack, "[{i}]").unwrap();
                         }
                     }
-                }
-            }
-            Value::Object(object) => {
-                {
-                    use io::Write;
-                    if COLOR {
-                        writeln!(
-                            locals.output,
-                            "{} = {ANSI_BRACE}{{}}{ANSI_RESET};",
-                            locals.stack
-                        )
-                        .unwrap();
-                    } else {
-                        writeln!(locals.output, "{} = {{}};", locals.stack).unwrap();
-                    }
-                }
-                {
-                    use fmt::Write;
-                    let mut object: Vec<(&str, &Value<'_>)> =
-                        object.iter().map(|(k, v)| (k.as_ref(), v)).collect();
-                    object.sort_unstable_by_key(|&(k, _)| k);
-                    for (key, value) in object {
-                        {
-                            locals.stack_item_starts.push(locals.stack.len());
-                            let dot = if locals.stack.is_empty() { "" } else { "." };
-                            if COLOR {
-                                write!(&mut locals.stack, "{dot}{ANSI_KEY}{key}{ANSI_RESET}")
-                                    .unwrap();
-                            } else {
-                                write!(&mut locals.stack, "{dot}{key}").unwrap();
-                            }
-                        }
-                        mem::drop(locals);
-                        process_recursively::<COLOR>(value);
-                        locals = lget(cell);
-                        {
-                            locals
-                                .stack
-                                .truncate(locals.stack_item_starts.pop().unwrap());
-                        }
+                    process_recursively::<COLOR>(item, locals);
+                    {
+                        locals
+                            .stack
+                            .truncate(locals.stack_item_starts.pop().unwrap());
                     }
                 }
             }
         }
-    })
+        Value::Object(object) => {
+            {
+                use io::Write;
+                if COLOR {
+                    writeln!(
+                        locals.output,
+                        "{} = {ANSI_BRACE}{{}}{ANSI_RESET};",
+                        locals.stack
+                    )
+                    .unwrap();
+                } else {
+                    writeln!(locals.output, "{} = {{}};", locals.stack).unwrap();
+                }
+            }
+            {
+                use fmt::Write;
+                let mut object: Vec<(&str, &Value<'_>)> =
+                    object.iter().map(|(k, v)| (k.as_ref(), v)).collect();
+                object.sort_unstable_by_key(|&(k, _)| k);
+                for (key, value) in object {
+                    {
+                        locals.stack_item_starts.push(locals.stack.len());
+                        let dot = if locals.stack.is_empty() { "" } else { "." };
+                        if COLOR {
+                            write!(&mut locals.stack, "{dot}{ANSI_KEY}{key}{ANSI_RESET}").unwrap();
+                        } else {
+                            write!(&mut locals.stack, "{dot}{key}").unwrap();
+                        }
+                    }
+                    process_recursively::<COLOR>(value, locals);
+                    {
+                        locals
+                            .stack
+                            .truncate(locals.stack_item_starts.pop().unwrap());
+                    }
+                }
+            }
+        }
+    }
 }
