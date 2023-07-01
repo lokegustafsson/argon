@@ -37,6 +37,8 @@
           cd $out
           patch -s --strip=1 < ${./patches/avx2_deser.patch}
           patch -s --strip=1 < ${./patches/charutils.patch}
+          ${pkgs.rustfmt}/bin/rustfmt $out/src/charutils.rs
+          ${pkgs.rustfmt}/bin/rustfmt $out/src/avx2/deser.rs
         '';
 
         rust = import ./rust.nix {
@@ -47,6 +49,7 @@
               buildInputs = (if old ? buildInputs then old.buildInputs else [ ])
                 ++ [ patched-simd-json-src ];
               unpackPhase = ''
+                echo src = $src
                 cp -r $src/* .
                 chmod -R +w .
               '';
