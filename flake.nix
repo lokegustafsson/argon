@@ -79,7 +79,7 @@
           type = "app";
           program =
             let app = pkgs.writeShellApplication (value // { inherit name; });
-            in "${app}/bin/name";
+            in "${app}/bin/${name}";
         }) (import ./apps.nix {
           inherit pkgs large-file-json rust patched-simd-json-src;
           cargo2nix = cargo2nix.outputs.packages.${system}.cargo2nix;
