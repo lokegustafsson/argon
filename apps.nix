@@ -2,39 +2,34 @@
   bench = {
     runtimeInputs = [ argonBin pkgs.bash pkgs.coreutils pkgs.gron pkgs.wget ];
     text = ''
-      cd ''${TMPDIR:-/tmp}
-      printf "@ $(pwd)\n"
+      cd "''${TMPDIR:-/tmp}"
+      printf "@ %s\n" "$(pwd)"
+      TIMECMD=(command time -f 'real %es\nuser %Us\nsys  %Ss\nmaxmem %MKB\n')
       set -v
-      time argon ${large-file-json} > large-file.argon
-      time argon --ungron large-file.argon > large-file.json
+      "''${TIMECMD[@]}" argon ${large-file-json} > large-file.argon
+      "''${TIMECMD[@]}" argon --ungron large-file.argon > large-file.json
     '';
   };
   compare = {
     runtimeInputs = [ argonBin pkgs.bash pkgs.coreutils pkgs.gron pkgs.wget ];
     text = ''
-      cd ''${TMPDIR:-/tmp}
-      printf "@ $(pwd)"
+      cd "''${TMPDIR:-/tmp}"
+      printf "@ %s\n" "$(pwd)"
+      TIMECMD=(command time -f 'real %es\nuser %Us\nsys  %Ss\nmaxmem %MKB')
 
-      printf "\ngron:"
-      time gron ${large-file-json} > gron.result
-      printf "\nargon:"
-      time argon ${large-file-json} > argon.result
-
-      printf "\ngron --ungron:"
-      time gron --ungron gron.result > gron.json
-      printf "\nargon --ungron:"
-      time argon --ungron argon.result > argon.json
+      printf "\ngron:\n"
+      "''${TIMECMD[@]}" gron ${large-file-json} > gron.result
+      printf "\nargon:\n"
+      "''${TIMECMD[@]}" argon ${large-file-json} > argon.result
+      printf "\ngron --ungron:\n"
+      "''${TIMECMD[@]}" gron --ungron gron.result > gron.json || true
+      printf "\nargon --ungron:\n"
+      "''${TIMECMD[@]}" argon --ungron argon.result > argon.json
     '';
   };
   test = {
-    runtimeInputs = [
-      argonBin
-      pkgs.bash
-      pkgs.coreutils
-      pkgs.diffutils
-      pkgs.gron
-      pkgs.wget
-    ];
+    runtimeInputs =
+      [ argonBin pkgs.bash pkgs.coreutils pkgs.diffutils pkgs.gron pkgs.wget ];
     text = ''
       printf "\nComparing on escaping.json.."
       G1=$(sha256sum <(gron ${./testcases/escaping.json}))
@@ -48,18 +43,13 @@
     '';
   };
   flamegraph = {
-    runtimeInputs =
-      [ argonBin pkgs.bash pkgs.coreutils pkgs.cargo-flamegraph ];
+    runtimeInputs = [ argonBin pkgs.bash pkgs.coreutils pkgs.cargo-flamegraph ];
     text = ''
       flamegraph -- argon ${large-file-json} > /dev/null
     '';
   };
   cargo2nix-extra = {
-    runtimeInputs = [
-      cargo2nix
-      pkgs.bash
-      pkgs.coreutils
-    ];
+    runtimeInputs = [ cargo2nix pkgs.bash pkgs.coreutils ];
     text = ''
       BASE=$(basename "$(pwd)")
       FLAKE="$(pwd)/flake.nix"

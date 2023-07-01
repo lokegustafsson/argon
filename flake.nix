@@ -44,7 +44,8 @@
           extra-overrides = { mkNativeDep, mkEnvDep, mkRpath, mkOverride, p }: [
             (mkNativeDep "argon" [ ])
             (mkOverride "simd-json" (old: {
-              buildInputs = old.buildInputs ++ [ patched-simd-json-src ];
+              buildInputs = (if old ? buildInputs then old.buildInputs else [ ])
+                ++ [ patched-simd-json-src ];
               unpackPhase = ''
                 cp -r $src/* .
                 chmod -R +w .
@@ -59,8 +60,8 @@
           sha256 = "sha256-T8HlLE5gn+vQXXWiTIS8aVf6TSz7DV++u6xlC9x+2MA=";
         };
 
-        argonBin = (rust.argon {}).bin;
-        argonTest = pkgs.rustBuilder.runTests rust.argon {};
+        argonBin = (rust.argon { }).bin;
+        argonTest = pkgs.rustBuilder.runTests rust.argon { };
       in {
         devShells.default = rust.workspaceShell {
           packages = let p = pkgs;
