@@ -24,16 +24,7 @@
           config.allowUnfree = false;
         };
         lib = nixpkgs.lib;
-        rust = import ./rust.nix {
-          inherit lib pkgs;
-          extra-overrides = { mkNativeDep, mkEnvDep, mkRpath, mkOverride, p }: [
-            (mkNativeDep "argon" [ ])
-            (mkOverride "simd-json" (old: {
-              patches = (if old ? patches then old.patches else [ ])
-                ++ [ ./patches/avx2_deser.patch ./patches/charutils.patch ];
-            }))
-          ];
-        };
+
         patched-simd-json-src = let
           gzipped = pkgs.fetchurl {
             url = "https://crates.io/api/v1/crates/simd-json/0.10.3/download";
@@ -44,11 +35,24 @@
           tar xvf src.tar.gz
           mv simd-json-0.10.3 $out
           cd $out
-          pwd
-          ls
           patch -s --strip=1 < ${./patches/avx2_deser.patch}
           patch -s --strip=1 < ${./patches/charutils.patch}
         '';
+
+        rust = import ./rust.nix {
+          inherit lib pkgs;
+          extra-overrides = { mkNativeDep, mkEnvDep, mkRpath, mkOverride, p }: [
+            (mkNativeDep "argon" [ ])
+            (mkOverride "simd-json" (old: {
+              buildInputs = old.buildInputs ++ [ patched-simd-json-src ];
+              unpackPhase = ''
+                cp -r $src/* .
+                chmod -R +w .
+              '';
+            }))
+          ];
+        };
+
         large-file-json = pkgs.fetchurl {
           url =
             "https://raw.githubusercontent.com/json-iterator/test-data/master/large-file.json";
@@ -71,114 +75,14 @@
 
         packages.default = rust.argon;
 
-        apps = {
-          bench = {
-            type = "app";
-            program = builtins.toString (pkgs.writeShellScript "bench" ''
-              export PATH=${
-                lib.strings.makeBinPath [
-                  pkgs.bash
-                  pkgs.coreutils
-                  pkgs.gron
-                  pkgs.wget
-                  rust.argon
-                ]
-              }
-              cd ''${TMPDIR:-/tmp}
-              printf "@ $(pwd)\n"
-              set -v
-              time argon ${large-file-json} > large-file.argon
-              time argon --ungron large-file.argon > large-file.json
-            '');
-          };
-          compare = {
-            type = "app";
-            program = builtins.toString (pkgs.writeShellScript "compare" ''
-              export PATH=${
-                lib.strings.makeBinPath [
-                  pkgs.bash
-                  pkgs.coreutils
-                  pkgs.gron
-                  pkgs.wget
-                  rust.argon
-                ]
-              }
-              cd ''${TMPDIR:-/tmp}
-              printf "@ $(pwd)"
-
-              printf "\ngron:"
-              time gron ${large-file-json} > gron.result
-              printf "\nargon:"
-              time argon ${large-file-json} > argon.result
-
-              printf "\ngron --ungron:"
-              time gron --ungron gron.result > gron.json
-              printf "\nargon --ungron:"
-              time argon --ungron argon.result > argon.json
-            '');
-          };
-          test = {
-            type = "app";
-            program = builtins.toString (pkgs.writeShellScript "bench" ''
-              export PATH=${
-                lib.strings.makeBinPath [
-                  pkgs.bash
-                  pkgs.coreutils
-                  pkgs.diffutils
-                  pkgs.gron
-                  pkgs.wget
-                  rust.argon
-                ]
-              }
-              printf "\nComparing on escaping.json.."
-              G1=$(sha256sum <(gron ${./testcases/escaping.json}))
-              A1=$(sha256sum <(argon ${./testcases/escaping.json}))
-              diff <(echo $G1) <(echo $A1)
-
-              printf "\nComparing on large-file.json.."
-              G2=$(sha256sum <(gron ${large-file-json}))
-              A2=$(sha256sum <(argon ${large-file-json}))
-              diff <(echo $G2) <(echo $A2)
-            '');
-          };
-          flamegraph = {
-            type = "app";
-            program = builtins.toString (pkgs.writeShellScript "flamegraph" ''
-              export PATH=${
-                lib.strings.makeBinPath [
-                  pkgs.bash
-                  pkgs.coreutils
-                  pkgs.cargo-flamegraph
-                  rust.argon
-                ]
-              }
-              flamegraph -- argon ${large-file-json} > /dev/null
-            '');
-          };
-          cargo2nix-extra = {
-            type = "app";
-            program = builtins.toString (pkgs.writeShellApplication {
-              name = "cargo2nix-extra";
-
-              runtimeInputs = [
-                pkgs.bash
-                pkgs.coreutils
-                cargo2nix.outputs.packages.${system}.cargo2nix
-              ];
-
-              text = ''
-                BASE=$(basename "$(pwd)")
-                if [ "$BASE" != "argon" ]; then
-                    echo "Must be run from the argon source tree root!"
-                    exit 1
-                fi
-                set -v
-                rm ./crates/patched-simd-json || true
-                ln -s ${patched-simd-json-src} ./crates/patched-simd-json
-                cargo2nix -f
-              '';
-            }) + "/bin/cargo2nix-extra";
-          };
-        };
+        apps = builtins.mapAttrs (name: value: {
+          type = "app";
+          program =
+            let app = pkgs.writeShellApplication (value // { inherit name; });
+            in "${app}/bin/name";
+        }) (import ./apps.nix {
+          inherit pkgs large-file-json rust patched-simd-json-src;
+          cargo2nix = cargo2nix.outputs.packages.${system}.cargo2nix;
+        });
       });
 }
