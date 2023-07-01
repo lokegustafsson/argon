@@ -131,8 +131,8 @@
                 ]
               }
               printf "\nComparing on escaping.json.."
-              G1=$(sha256sum <(gron ${./test/escaping.json}))
-              A1=$(sha256sum <(argon ${./test/escaping.json}))
+              G1=$(sha256sum <(gron ${./testcases/escaping.json}))
+              A1=$(sha256sum <(argon ${./testcases/escaping.json}))
               diff <(echo $G1) <(echo $A1)
 
               printf "\nComparing on large-file.json.."
