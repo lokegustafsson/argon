@@ -37,8 +37,10 @@
           cd $out
           patch -s --strip=1 < ${./patches/avx2_deser.patch}
           patch -s --strip=1 < ${./patches/charutils.patch}
+          patch -s --strip=1 < ${./patches/serde_se_pp.patch}
           ${pkgs.rustfmt}/bin/rustfmt $out/src/charutils.rs
           ${pkgs.rustfmt}/bin/rustfmt $out/src/avx2/deser.rs
+          ${pkgs.rustfmt}/bin/rustfmt $out/src/serde/se/pp.rs
         '';
 
         rust = import ./rust.nix {

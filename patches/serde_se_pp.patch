@@ -1,0 +1,17 @@
+--- a/src/serde/se/pp.rs
++++ b/src/serde/se/pp.rs
+@@ -92,6 +92,14 @@ where
+             }
+         })
+     }
++    #[inline]
++    fn write_simple_str_content(&mut self, string: &str) -> std::io::Result<()> {
++        self.get_writer().write_all(string.as_bytes())
++    }
++    #[inline]
++    fn write_string_content(&mut self, string: &str) -> std::io::Result<()> {
++        self.get_writer().write_all(string.as_bytes())
++    }
+
+     fn indent(&mut self) {
+         self.dent += 1;
