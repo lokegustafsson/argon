@@ -71,6 +71,14 @@ never actually completes, as the program is killed after Out-Of-Memory
 
 * argon is carefully written and profiled with performance in mind.
 
+## Known functional differences from gron
+
+* The `foo.bar` syntax is used over the `foo["bar"]` syntax even when `bar` is
+    an invalid Javascript identifier. I.e., argon can output
+    `json.foo\nbar = 123;`.
+* argon will not escape initially unescaped
+    [C1 control codes](https://en.wikipedia.org/wiki/C0_and_C1_control_codes).
+
 ## License
 
 argon is dual-licensed under Apache-2.0 or MIT.
