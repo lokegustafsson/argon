@@ -1,10 +1,9 @@
 use include_dir::Dir;
 use std::{cell::RefCell, ffi::OsStr, io, rc::Rc};
 
-const TEST_CASES_ROUNDTRIP: Dir<'static> =
-    include_dir::include_dir!("$TEST_CASE_DIR/roundtrip");
-const TEST_CASES_NONCANON: Dir<'static> =
-    include_dir::include_dir!("$TEST_CASE_DIR/noncanon");
+const TEST_CASES_ROUNDTRIP: Dir<'static> = include_dir::include_dir!("$TEST_CASE_DIR/roundtrip");
+const TEST_CASES_GRON: Dir<'static> = include_dir::include_dir!("$TEST_CASE_DIR/gron");
+const TEST_CASES_UNGRON: Dir<'static> = include_dir::include_dir!("$TEST_CASE_DIR/ungron");
 
 const HAVE_COLOR: bool = false;
 
@@ -54,24 +53,21 @@ fn roundtrip_cases() {
 }
 
 #[test]
-fn noncanon_cases() {
-    for entry in TEST_CASES_NONCANON
+fn gron_cases() {
+    for entry in TEST_CASES_GRON
         .entries()
         .iter()
         .map(|entry| entry.as_file().unwrap())
+        .filter(|file| file.path().extension().unwrap() == OsStr::new("json"))
     {
-        if entry.path().extension() != Some(OsStr::new("json")) {
-            continue;
-        }
         let json = entry.contents_utf8().unwrap();
-        let expected_gron = TEST_CASES_NONCANON
+        let expected_gron = TEST_CASES_GRON
             .get_file(entry.path().with_extension("js"))
             .unwrap()
             .contents_utf8()
             .unwrap();
 
         let got_gron = gron(&json);
-        let got_json = ungron(expected_gron.as_bytes());
 
         if &expected_gron != &got_gron {
             panic!(
@@ -87,7 +83,27 @@ fn noncanon_cases() {
                 expected_gron, got_gron
             );
         }
-        if &json != &got_json {
+    }
+}
+
+#[test]
+fn ungron_cases() {
+    for entry in TEST_CASES_UNGRON
+        .entries()
+        .iter()
+        .map(|entry| entry.as_file().unwrap())
+        .filter(|file| file.path().extension().unwrap() == OsStr::new("js"))
+    {
+        let gron = entry.contents_utf8().unwrap();
+        let expected_json = TEST_CASES_UNGRON
+            .get_file(entry.path().with_extension("json"))
+            .unwrap()
+            .contents_utf8()
+            .unwrap();
+
+        let got_json = ungron(gron.as_bytes());
+
+        if &expected_json != &got_json {
             panic!(
                 concat!(
                     "ungronning test failure\n",
@@ -98,7 +114,7 @@ fn noncanon_cases() {
                     "{}\n",
                     "END GOT JSON\n",
                 ),
-                json, got_json
+                expected_json, got_json
             );
         }
     }
