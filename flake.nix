@@ -93,6 +93,7 @@
         };
 
         packages = {
+          inherit patched-simd-json-src;
           default = argonBin;
           unit-test = argonTest;
         };
