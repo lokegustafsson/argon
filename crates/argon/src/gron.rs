@@ -1,5 +1,6 @@
 use patched_simd_json::value::borrowed::{self, Value};
 use std::{
+    borrow::Cow,
     fmt,
     io::{self, BufWriter},
     mem::ManuallyDrop,
@@ -71,6 +72,7 @@ fn process_recursively<const COLOR: bool>(json: &Value<'_>, locals: &mut Locals)
             }
         }
         Value::String(val) => {
+            let val = escape_c1_control_codes(val);
             use io::Write;
             if COLOR {
                 writeln!(
@@ -144,6 +146,7 @@ fn process_recursively<const COLOR: bool>(json: &Value<'_>, locals: &mut Locals)
                     {
                         locals.stack_item_starts.push(locals.stack.len());
                         let dot = if locals.stack.is_empty() { "" } else { "." };
+                        let key = escape_c1_control_codes(key);
                         if COLOR {
                             write!(&mut locals.stack, "{dot}{ANSI_KEY}{key}{ANSI_RESET}").unwrap();
                         } else {
@@ -160,4 +163,39 @@ fn process_recursively<const COLOR: bool>(json: &Value<'_>, locals: &mut Locals)
             }
         }
     }
+}
+
+fn escape_c1_control_codes<'a>(mut s: &'a str) -> Cow<'a, str> {
+    // A codepoint `x` between `0x80` and `0x9f` inclusive is in utf8 encoded as
+    // `0xc2` followed by `x`.
+    let sb = s.as_bytes();
+    if !memchr::memchr_iter(0xc2, sb)
+        .any(|i| i + 1 < sb.len() && 0x80 <= sb[i + 1] && sb[i + 1] <= 0x9f)
+    {
+        return Cow::Borrowed(s);
+    }
+
+    let mut ret = String::new();
+    while let Some(i) = memchr::memchr(0xc2, s.as_bytes()) {
+        if i + 1 >= s.as_bytes().len() {
+            continue;
+        }
+        let val = s.as_bytes()[i + 1];
+        if val < 0x80 || val > 0x9f {
+            continue;
+        }
+        ret.push_str(&s[..i]);
+        ret.push_str("\\u00");
+        let high_nibble = val >> 4;
+        ret.push(char::from(b'0' + high_nibble));
+        let low_nibble = val & 0xf;
+        ret.push(char::from(if low_nibble < 10 {
+            b'0' + low_nibble
+        } else {
+            b'a' - 10 + low_nibble
+        }));
+        s = &s[i + 2..];
+    }
+    ret.push_str(s);
+    Cow::Owned(ret)
 }
