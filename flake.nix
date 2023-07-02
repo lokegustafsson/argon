@@ -82,7 +82,7 @@
 
         packages = {
           default = argonBin;
-          ci = argonTest;
+          unit-test = argonTest;
         };
 
         apps = builtins.mapAttrs (name: value: {

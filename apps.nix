@@ -27,7 +27,7 @@
       "''${TIMECMD[@]}" argon --ungron argon.result > argon.json
     '';
   };
-  test = {
+  integration-test = {
     runtimeInputs =
       [ argonBin pkgs.bash pkgs.coreutils pkgs.diffutils pkgs.gron pkgs.wget ];
     text = ''

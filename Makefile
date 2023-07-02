@@ -3,7 +3,8 @@
 	cargo2nix-extra \
 	compare \
 	flamegraph \
-	test
+	integration-test \
+	unit-test
 
 bench:
 	nix run '.#bench'
@@ -17,5 +18,8 @@ compare:
 flamegraph:
 	nix run '.#flamegraph'
 
-test:
-	nix run '.#test'
+integration-test:
+	nix run '.#integration-test'
+
+unit-test:
+	nix build '.#unit-test' -L
