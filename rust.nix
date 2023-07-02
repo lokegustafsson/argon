@@ -20,14 +20,7 @@ let
         mkEnvDep = cratename: env-deps:
           (p.rustBuilder.rustLib.makeOverride {
             name = cratename;
-            overrideAttrs = drv:
-              (env-deps // {
-                propagatedBuildInputs = (drv.propagatedBuildInputs or [ ]) ++ [
-                  (p.rustBuilder.overrides.patches.propagateEnv cratename
-                    (lib.attrsets.mapAttrsToList
-                      (name: value: { inherit name value; }) env-deps))
-                ];
-              });
+            overrideAttrs = drv: env-deps;
           });
         mkRpath = cratename: libs:
           p.rustBuilder.rustLib.makeOverride {

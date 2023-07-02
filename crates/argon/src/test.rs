@@ -1,7 +1,10 @@
-use std::{cell::RefCell, io, rc::Rc, fs, ffi::OsStr};
+use include_dir::Dir;
+use std::{cell::RefCell, ffi::OsStr, io, rc::Rc};
 
-const TEST_CASES_ROUNDTRIP: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testcases/roundtrip");
-const TEST_CASES_NONCANON: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testcases/noncanon");
+const TEST_CASES_ROUNDTRIP: Dir<'static> =
+    include_dir::include_dir!("$TEST_CASE_DIR/roundtrip");
+const TEST_CASES_NONCANON: Dir<'static> =
+    include_dir::include_dir!("$TEST_CASE_DIR/noncanon");
 
 const HAVE_COLOR: bool = false;
 
@@ -19,12 +22,13 @@ fn ungron(input: &[u8]) -> String {
 
 #[test]
 fn roundtrip_cases() {
-    for entry in fs::read_dir(TEST_CASES_ROUNDTRIP).unwrap() {
-        let entry = entry.unwrap();
-        assert!(entry.file_type().unwrap().is_file());
-        let path = entry.path();
-        assert_eq!(path.extension(), Some(OsStr::new("json")));
-        let sample = fs::read_to_string(path).unwrap();
+    for entry in TEST_CASES_ROUNDTRIP
+        .entries()
+        .iter()
+        .map(|entry| entry.as_file().unwrap())
+    {
+        assert_eq!(entry.path().extension(), Some(OsStr::new("json")));
+        let sample = entry.contents_utf8().unwrap();
 
         let lines = gron(&sample);
         dbg!(&lines);
@@ -51,15 +55,20 @@ fn roundtrip_cases() {
 
 #[test]
 fn noncanon_cases() {
-    for entry in fs::read_dir(TEST_CASES_NONCANON).unwrap() {
-        let entry = entry.unwrap();
-        assert!(entry.file_type().unwrap().is_file());
-        let path = entry.path();
-        if path.extension() != Some(OsStr::new("json")) {
+    for entry in TEST_CASES_NONCANON
+        .entries()
+        .iter()
+        .map(|entry| entry.as_file().unwrap())
+    {
+        if entry.path().extension() != Some(OsStr::new("json")) {
             continue;
         }
-        let json = fs::read_to_string(&path).unwrap();
-        let expected_gron = fs::read_to_string(path.with_extension("js")).unwrap();
+        let json = entry.contents_utf8().unwrap();
+        let expected_gron = TEST_CASES_NONCANON
+            .get_file(entry.path().with_extension("js"))
+            .unwrap()
+            .contents_utf8()
+            .unwrap();
 
         let got_gron = gron(&json);
         let got_json = ungron(expected_gron.as_bytes());

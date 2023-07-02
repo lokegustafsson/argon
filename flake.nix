@@ -46,7 +46,7 @@
         rust = import ./rust.nix {
           inherit lib pkgs;
           extra-overrides = { mkNativeDep, mkEnvDep, mkRpath, mkOverride, p }: [
-            (mkNativeDep "argon" [ ])
+            (mkEnvDep "argon" { TEST_CASE_DIR = ./testcases; })
             (mkOverride "simd-json" (old: {
               buildInputs = (if old ? buildInputs then old.buildInputs else [ ])
                 ++ [ patched-simd-json-src ];
@@ -80,6 +80,16 @@
           ];
           LD_LIBRARY_PATH = let p = pkgs; in lib.makeLibraryPath [ ];
           LARGE_FILE_JSON = large-file-json;
+          shellHook = ''
+            BASE=$(basename "$(pwd)")
+            FLAKE="$(pwd)/flake.nix"
+            if [[ ("$BASE" != "argon") || (! -f "$FLAKE") ]]; then
+                echo "Must be run from the argon source tree root!"
+                exit 1
+            fi
+            unset BASE FLAKE
+            export TEST_CASE_DIR="$(pwd)/testcases"
+          '';
         };
 
         packages = {
