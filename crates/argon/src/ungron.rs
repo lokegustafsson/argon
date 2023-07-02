@@ -128,3 +128,20 @@ fn merge_json<'a>(j1: Value<'a>, j2: Value<'a>) -> Value<'a> {
         (a, b) => panic!("invalid gronlines; merging {a} and {b}"),
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_add_line_to_json() {
+        assert_eq!(
+            add_line_to_json(Value::Static(StaticNode::Null), r#"json = "abc";"#),
+            Value::String(Cow::Borrowed("abc"))
+        );
+        assert_eq!(
+            add_line_to_json(Value::Static(StaticNode::Null), r#"json = "abc\n\r";"#),
+            Value::String(Cow::Borrowed(r#"abc\n\r"#))
+        );
+    }
+}
