@@ -1,4 +1,7 @@
-use std::{cell::RefCell, io, rc::Rc};
+use std::{cell::RefCell, io, rc::Rc, fs, ffi::OsStr};
+
+const TEST_CASES_ROUNDTRIP: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testcases/roundtrip");
+const TEST_CASES_NONCANON: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testcases/noncanon");
 
 const HAVE_COLOR: bool = false;
 
@@ -16,23 +19,17 @@ fn ungron(input: &[u8]) -> String {
 
 #[test]
 fn roundtrip_cases() {
-    const CORRECTLY_FORMATTED_SAMPLES: &[&str] = &[
-        r#"{
-  "abc": 123
-}
-"#,
-        r#"{
-  "abc": 123,
-  "abc\n\t": "abc\n\t"
-}
-"#,
-    ];
+    for entry in fs::read_dir(TEST_CASES_ROUNDTRIP).unwrap() {
+        let entry = entry.unwrap();
+        assert!(entry.file_type().unwrap().is_file());
+        let path = entry.path();
+        assert_eq!(path.extension(), Some(OsStr::new("json")));
+        let sample = fs::read_to_string(path).unwrap();
 
-    for sample in CORRECTLY_FORMATTED_SAMPLES {
-        let lines = gron(sample);
+        let lines = gron(&sample);
         dbg!(&lines);
         let json = ungron(lines.as_bytes());
-        if &json != sample {
+        if &json != &sample {
             panic!(
                 concat!(
                     "roundtrip test failure\n",
@@ -47,6 +44,52 @@ fn roundtrip_cases() {
                     "END JSON",
                 ),
                 sample, lines, json
+            );
+        }
+    }
+}
+
+#[test]
+fn noncanon_cases() {
+    for entry in fs::read_dir(TEST_CASES_NONCANON).unwrap() {
+        let entry = entry.unwrap();
+        assert!(entry.file_type().unwrap().is_file());
+        let path = entry.path();
+        if path.extension() != Some(OsStr::new("json")) {
+            continue;
+        }
+        let json = fs::read_to_string(&path).unwrap();
+        let expected_gron = fs::read_to_string(path.with_extension("js")).unwrap();
+
+        let got_gron = gron(&json);
+        let got_json = ungron(expected_gron.as_bytes());
+
+        if &expected_gron != &got_gron {
+            panic!(
+                concat!(
+                    "gronning test failure\n",
+                    "BEGIN EXPECTED GRON\n",
+                    "{}\n",
+                    "END EXPECTED GRON\n",
+                    "BEGIN GOT GRON\n",
+                    "{}\n",
+                    "END GOT GRON\n",
+                ),
+                expected_gron, got_gron
+            );
+        }
+        if &json != &got_json {
+            panic!(
+                concat!(
+                    "ungronning test failure\n",
+                    "BEGIN EXPECTED JSON\n",
+                    "{}\n",
+                    "END EXPECTED JSON\n",
+                    "BEGIN GOT JSON\n",
+                    "{}\n",
+                    "END GOT JSON\n",
+                ),
+                json, got_json
             );
         }
     }
