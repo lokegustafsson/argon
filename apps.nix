@@ -31,15 +31,15 @@
     runtimeInputs =
       [ argonBin pkgs.bash pkgs.coreutils pkgs.diffutils pkgs.gron pkgs.wget ];
     text = ''
-      printf "\nComparing on escaping.json.."
-      G1=$(sha256sum <(gron ${./testcases/escaping.json}))
-      A1=$(sha256sum <(argon ${./testcases/escaping.json}))
-      diff <(echo $G1) <(echo $A1)
+      printf "\nComparing on allbytes.json.."
+      G1=$(sha256sum <(gron ${./testcases/gron/allbytes.json}))
+      A1=$(sha256sum <(argon ${./testcases/gron/allbytes.json}))
+      diff <(echo "$G1") <(echo "$A1")
 
       printf "\nComparing on large-file.json.."
       G2=$(sha256sum <(gron ${large-file-json}))
       A2=$(sha256sum <(argon ${large-file-json}))
-      diff <(echo $G2) <(echo $A2)
+      diff <(echo "$G2") <(echo "$A2")
     '';
   };
   flamegraph = {
