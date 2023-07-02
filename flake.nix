@@ -48,8 +48,7 @@
           extra-overrides = { mkNativeDep, mkEnvDep, mkRpath, mkOverride, p }: [
             (mkEnvDep "argon" { TEST_CASE_DIR = ./testcases; })
             (mkOverride "simd-json" (old: {
-              buildInputs = (if old ? buildInputs then old.buildInputs else [ ])
-                ++ [ patched-simd-json-src ];
+              src = patched-simd-json-src;
               unpackPhase = ''
                 echo src = $src
                 cp -r $src/* .
