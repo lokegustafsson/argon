@@ -16,19 +16,19 @@ fn ungron(input: &[u8]) -> String {
 
 #[test]
 fn roundtrip_cases() {
-    const SAMPLES: &[&str] = &[
+    const CORRECTLY_FORMATTED_SAMPLES: &[&str] = &[
         r#"{
   "abc": 123
 }
 "#,
         r#"{
-  "abc\n\t": "abc\n\t",
-  "abc": 123
+  "abc": 123,
+  "abc\n\t": "abc\n\t"
 }
 "#,
     ];
 
-    for sample in SAMPLES {
+    for sample in CORRECTLY_FORMATTED_SAMPLES {
         let lines = gron(sample);
         dbg!(&lines);
         let json = ungron(lines.as_bytes());
