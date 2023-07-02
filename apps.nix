@@ -59,7 +59,13 @@
           exit 1
       fi
       set -v
+
       rm ./crates/patched-simd-json || true
+
+      simd_json_files="$(find target/ | (grep 'simd[_\-]json' || true) | sort -r)"
+      readarray -t simd_json_files <<<"''${simd_json_files}"
+      rm -r "''${simd_json_files[@]}" || true
+
       ln -s ${patched-simd-json-src} ./crates/patched-simd-json
       cargo2nix -f
     '';
