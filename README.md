@@ -62,7 +62,8 @@ never actually completes, as the program is killed after Out-Of-Memory
 ## Why it is fast
 
 * The JSON manipulation is built upon
-    [simd-json](https://github.com/simd-lite/simd-json).
+    [simd-json](https://github.com/simd-lite/simd-json). argon requires AVX2
+    support.
 
 * String unescaping takes significant time when deserializing json but is
     actually not necessary if we will escape it again soon afterwards. Much of
