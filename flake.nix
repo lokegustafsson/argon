@@ -87,7 +87,11 @@
                 exit 1
             fi
             unset BASE FLAKE
+
             export TEST_CASE_DIR="$(pwd)/testcases"
+
+            git rev-parse --is-inside-work-tree > /dev/null && \
+            export CARGO_TARGET_DIR="$HOME/cargo-target-dir$(git rev-parse --show-toplevel)"
           '';
         };
 
